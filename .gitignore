@@ -1,0 +1,6 @@
+MCP/keys.py
+mcp-postgres/venv/
+MCP/__pycache__/
+MCP/.gradio/
+MCP/.venv/
+MCP/clients/.env
