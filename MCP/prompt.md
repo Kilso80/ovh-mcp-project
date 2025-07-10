@@ -60,7 +60,6 @@ This document outlines the database schema used in the `todolist` database. The 
 | category_id | integer           | Foreign Key<br>References `categories.id`             | The category the task belongs to.         |
 | creation    | timestamp         | DEFAULT CURRENT_TIMESTAMP                             | Timestamp when the task was created.    |
 | edited      | timestamp         | DEFAULT CURRENT_TIMESTAMP, Updated by Trigger         | Timestamp when the task was last edited.|
-| order_id    | integer           |                                                     | Order index for the task.                 |
 
 ### 5. `tokens`
 

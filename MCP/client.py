@@ -5,7 +5,7 @@ from typing import Any, List
 import asyncio
 from qwen_agent.llm import get_chat_model
 from qwen_agent.llm.schema import Message
-from keys import API_KEY
+from MCP.keys import API_KEY
 
 MODEL_ID = "Qwen2.5-Coder-32B-Instruct"
 
@@ -171,6 +171,7 @@ def str_to_tool_call(string):
         return False, None
     try:
         r = eval(string[i:].replace(": null", ": None"))
+        assert type(r) is dict
     except:
         return False, None
     return r.get("name") is not None and r.get("arguments") is not None, r
@@ -184,7 +185,7 @@ async def main():
     server_params = StdioServerParameters(
         command="python3",
         args=[
-            "../mcp-postgres/postgres_server.py",
+            "./mcp-postgres/postgres_server.py",
         ],
         env=None
     )
@@ -211,7 +212,7 @@ async def main():
             }
             for tool in mcp_tools
             if tool.name
-            != "list_tables" and print(tool) is None  # Excludes list_tables tool as it has an incorrect schema
+            != "list_tables"  # Excludes list_tables tool as it has an incorrect schema
         }
         
         messages = []
@@ -232,3 +233,51 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+messages_save = []
+
+async def ask_model(query: str) -> str:
+    global messages_save
+    server_params = StdioServerParameters(
+        command="python3",
+        args=[
+            "./mcp-postgres/postgres_server.py",
+        ],
+        env=None
+    )
+    
+    # Start MCP client and create interactive session
+    async with MCPClient(server_params) as mcp_client:
+        # Get available database tools and prepare them for the LLM
+        mcp_tools = await mcp_client.get_available_tools()
+        # Convert MCP tools into a format the LLM can understand and use
+        tools = {
+            tool.name: {
+                "name": tool.name,
+                "callable": mcp_client.call_tool(
+                    tool.name
+                ),  # returns a callable function for the rpc call
+                "schema": {
+                    "type": "function",
+                    "function": {
+                        "name": tool.name,
+                        "description": tool.description,
+                        "parameters": tool.inputSchema,
+                    },
+                },
+            }
+            for tool in mcp_tools
+            if tool.name
+            != "list_tables"
+        }
+        
+        while True:
+            try:
+                user_input = input("\nEnter your prompt (or 'quit' to exit): ")
+                if user_input.lower() in ["quit", "exit", "q"]:
+                    break
+                # Process the prompt and run agent loop
+                response, messages_save = await agent_loop(user_input, tools, messages_save)
+                return response
+            except Exception as e:
+                return f"\nError occurred: {e}"

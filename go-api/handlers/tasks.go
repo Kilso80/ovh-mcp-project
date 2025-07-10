@@ -21,7 +21,7 @@ func TasksGetter(c *gin.Context) {
 	}
 
 	var tasks []models.Task = []models.Task{}
-	rows, err := utils.Db.Query("SELECT t.id, t.name, t.parent, t.status_id, t.category_id, t.creation, t.edited, t.order_id FROM tasks AS t INNER JOIN accesses AS a ON a.category_id = t.category_id WHERE a.user_id = $1;", userID)
+	rows, err := utils.Db.Query("SELECT t.id, t.name, t.parent, t.status_id, t.category_id, t.creation, t.edited FROM tasks AS t INNER JOIN accesses AS a ON a.category_id = t.category_id WHERE a.user_id = $1;", userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -31,7 +31,7 @@ func TasksGetter(c *gin.Context) {
 	for rows.Next() {
 		var t models.Task
 		var parent sql.NullInt64
-		if err := rows.Scan(&t.ID, &t.Name, &parent, &t.Status, &t.Category, &t.Creation, &t.Edited, &t.PriorityOrder); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &parent, &t.Status, &t.Category, &t.Creation, &t.Edited); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -58,7 +58,6 @@ func TaskCreator(c *gin.Context) {
 	name := c.Query("name")
 	parentIDStr := c.Query("parent")
 	categoryIDStr := c.Query("category")
-	priorityOrderStr := c.Query("priority_order")
 
 	var parentID interface{}
 	if parentIDStr == "" {
@@ -75,10 +74,6 @@ func TaskCreator(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid category ID format"})
 		return
-	}
-	priorityOrder, err := strconv.Atoi(priorityOrderStr)
-	if err != nil {
-		priorityOrder = 0
 	}
 
 	if name == "" {
@@ -121,7 +116,7 @@ func TaskCreator(c *gin.Context) {
 	}
 
 	var id int
-	err = utils.Db.QueryRow("INSERT INTO TASKS(name, parent, status_id, category_id, order_id) VALUES($1, $2, $3, $4, $5) RETURNING id;", name, parentID, 1, categoryID, priorityOrder).Scan(&id)
+	err = utils.Db.QueryRow("INSERT INTO TASKS(name, parent, status_id, category_id) VALUES($1, $2, $3, $4, $5) RETURNING id;", name, parentID, 1, categoryID).Scan(&id)
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -143,12 +138,10 @@ func TaskUpdater(c *gin.Context) {
 	parentIDStr := c.Query("parent")
 	statusIDStr := c.Query("status")
 	categoryIDStr := c.Query("category")
-	priorityOrderStr := c.Query("priority_order")
 
 	parentID, _ := strconv.Atoi(parentIDStr)
 	statusID, _ := strconv.Atoi(statusIDStr)
 	categoryID, _ := strconv.Atoi(categoryIDStr)
-	priorityOrder, _ := strconv.Atoi(priorityOrderStr)
 
 	// Fetch user role for the task's category
 	role, err := utils.GetUserRoleForCategory(userID.(int), categoryID)
@@ -176,8 +169,8 @@ func TaskUpdater(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Task name is required"})
 			return
 		}
-		_, err = utils.Db.Exec("UPDATE TASKS SET name=$1, parent=$2, status_id=$3, category_id=$4, order_id=$5, edited=CURRENT_TIMESTAMP WHERE id=$6;",
-			name, parentID, statusID, categoryID, priorityOrder, taskID)
+		_, err = utils.Db.Exec("UPDATE TASKS SET name=$1, parent=$2, status_id=$3, category_id=$4, edited=CURRENT_TIMESTAMP WHERE id=$5;",
+			name, parentID, statusID, categoryID, taskID)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
