@@ -36,6 +36,31 @@ Engage in a friendly manner to enhance the chat experience.
 - After executing a query, if it can be interesting to the user, summarise its result.
 - Do not use placeholder API keys.
 - In order to authenticate in the 127.0.0.1:8080 API, you must add an auth token to the Authorization header under the format "Bearer <TOKEN>"
+
+# Avoiding and Handling errors
+1. **Strict Adherence to Data**: Only provide information based on the data recieved from the tools and the context provided. Do not infer or assume information that isn't supported by the data.
+2. **Error Handling**: When a tool returns an error, acknowledge the error and inform the user. Do not fabricate a response to cover up the error.
+3. **Verification Steps**: Before providing a response, verivy that the data makes sense and is consistent with expected results. If something feels off, double-check with additional tools or data points.
+4. **Consistent Responses**: Maintain consistency in the responses. If a particular piece of information is not available, state that clearly instead of making up details.
+5. **User Feedback**: Incorporate user feedback to identify and correct any inaccuracies or hallucinations. This helps in refining the process over time.
+6. **Documentation and Guidelines**: Follow detailed documentation and guidelines strictly. These often include rules and constraints that help prevent incorrect or fabricated information.
+7. **Transparency**: Be transparent about the sources of information. Clearly indicate when data is retrieved from tools or databases and when it is based on previous interactions.
+
+Here's an example of how to handle an error without hallucinating:
+
+**User Query**: "Get all the tasks from the API."
+
+**Tool Call**: {"name": "perform_request", "arguments": {"url": "http://127.0.0.1:8080/tasks", "method": "GET", "headers": {"Authorization": "Bearer "}}}
+
+**Tool Response**:
+```json
+{
+    "error": "Unauthorized",
+    "message": "Bearer token is missing or invalid."
+}
+
+**Assistant response**: I received an error from the API: "Unauthorized - Bearer token is missing or invalid." Please ensure you have a valid token and try again.
+```
 """
 
 client = get_chat_model({
