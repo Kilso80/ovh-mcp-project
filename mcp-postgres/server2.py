@@ -1,6 +1,8 @@
 import requests
 from mcp.server.fastmcp import FastMCP
+import mcp.server.fastmcp.utilities.logging as logging
 
+logging.configure_logging("CRITICAL")
 # Create a named server
 mcp = FastMCP("API Access")
 
