@@ -2,11 +2,12 @@ from textual.app import App
 from textual.widgets import Footer, Header, Button, Static, TextArea, Markdown
 from textual.containers import ScrollableContainer
 from textual import on
-from MCP.client_copy import ask_model
+from MCP.client_copy import ask_model, reset_chat
 
 class ChatBotApp(App):
     BINDINGS = [
         ("d", "toggle_dark", "Toggle dark mode"),
+        ("ctrl+n", "create_new_chat", "Create new chat"),
     ]
     
     CSS_PATH = "style.tcss"
@@ -17,8 +18,10 @@ class ChatBotApp(App):
         yield ChatInput()
         yield Footer()
         
-    def action_send_msg(self):
-        self.action_toggle_dark()
+    def action_create_new_chat(self):
+        reset_chat()
+        self.query_exactly_one("Conversation ScrollableContainer").remove_children()
+        
 
 class Conversation(Static):
     def compose(self):

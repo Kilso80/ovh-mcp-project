@@ -306,3 +306,7 @@ async def ask_model(query: str) -> str:
             return response
         except Exception as e:
             return f"\nError occurred: {e}"
+
+def reset_chat():
+    global messages_save
+    messages_save = []
