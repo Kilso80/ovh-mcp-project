@@ -55,7 +55,7 @@ class ChatInput(Static):
     async def action_ask_agent(self):
         query = self.children[0].text
         self.children[0].text = ""
-        msg = UserMessage('\n\n'.join(query.split('\n')))
+        msg = UserMessage("\n\n".join(query.split('\n')))
         self.query_exactly_one("Button").disabled = True
         msg_list = self.parent.query_exactly_one("Conversation ScrollableContainer")
         msg_list.mount(msg)
@@ -71,7 +71,6 @@ class ChatInput(Static):
         answer.set_loading(False)
         msg_list.scroll_end()
         self.query_exactly_one("Button").disabled = False
-        
 
 if __name__ == "__main__":
     ChatBotApp().run()
