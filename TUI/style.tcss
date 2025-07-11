@@ -32,10 +32,6 @@ UserMessage Markdown {
     background: $panel;
 }
 
-ChatInput Button {
-    dock: right;
-}
-
 ChatInput Input {
     width: 215;
     text-overflow: fold;
@@ -51,6 +47,5 @@ ChatInput {
     dock: bottom;
     margin-bottom: 1;
     align: right bottom;
-    background: red;
     content-align-vertical: bottom;
 }

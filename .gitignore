@@ -4,3 +4,8 @@ MCP/__pycache__/
 MCP/.gradio/
 MCP/.venv/
 MCP/clients/.env
+.venv
+.zshrc
+MCP/__pycache__/*
+TUI/__pycache__/*
+__pycache__/*

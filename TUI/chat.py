@@ -55,20 +55,21 @@ class ChatInput(Static):
     async def action_ask_agent(self):
         query = self.children[0].text
         self.children[0].text = ""
-        msg = UserMessage(query)
+        msg = UserMessage('\n\n'.join(query.split('\n')))
         self.query_exactly_one("Button").disabled = True
         msg_list = self.parent.query_exactly_one("Conversation ScrollableContainer")
         msg_list.mount(msg)
+        msg_list.scroll_end()
         answer = BotMessage("")
         answer.set_loading(True)
         msg_list.mount(answer)
+        msg_list.scroll_end()
         ans_text = await ask_model(query)
-        if ans_text == "":
-            ans_text = "An error has been encountered"
+        if ans_text == "": ans_text = "An error has been encountered"
         await answer.set_text(ans_text)
         answer.refresh()
         answer.set_loading(False)
-        # answer.scroll_visible()
+        msg_list.scroll_end()
         self.query_exactly_one("Button").disabled = False
         
 
