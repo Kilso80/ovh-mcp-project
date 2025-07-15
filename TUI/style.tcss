@@ -33,12 +33,14 @@ UserMessage Markdown {
 }
 
 ChatInput Input {
-    width: 215;
+    width: 92vw;
     text-overflow: fold;
 }
 
 ChatInput TextArea {
     max-height: 10;
+    width: 92vw;
+    display: None;
 }
 
 ChatInput {
@@ -48,4 +50,9 @@ ChatInput {
     margin-bottom: 1;
     align: right bottom;
     content-align-vertical: bottom;
+    width: 100vw;
+}
+
+ChatInput Button {
+    width: 8vw;
 }

@@ -1,8 +1,9 @@
 from textual.app import App
-from textual.widgets import Footer, Header, Button, Static, TextArea, Markdown
+from textual.widgets import Footer, Header, Button, Static, TextArea, Markdown, Input
 from textual.containers import ScrollableContainer
 from textual import on
 from MCP.client_copy import ask_model, reset_chat
+from textual.binding import Binding
 
 class ChatBotApp(App):
     BINDINGS = [
@@ -49,15 +50,35 @@ class UserMessage(Message):
         super().__init__(message, *args, **kwargs)
 
 class ChatInput(Static):
+    BINDINGS = [
+        Binding("shift+enter", "use_multiline", "Switch to a multi-line text editor")
+    ]
     def compose(self):
-        # yield Input(placeholder="Enter your question here")
-        yield TextArea(disabled=False, compact=True, id="input")
+        i = Input(placeholder="Enter your question here")
+        yield i
+        yield TextArea(compact=True, id="input")
         yield Button('Send', "primary")
+        
+    def action_use_multiline(self):
+        self.change_input_type(False)
+        
+    def change_input_type(self, oneline: bool):
+        if self.children[1].display not in [None, False] and oneline:
+            self.children[0].value = self.children[1].text
+        if self.children[0].display not in [None, False] and not oneline:
+            self.children[1].text = self.children[0].value
+        self.children[0].display = [False, "block"][oneline]
+        self.children[1].display = ["block", False][oneline]
     
     @on(Button.Pressed)
     async def action_ask_agent(self):
-        query = self.children[0].text
-        self.children[0].text = ""
+        query = ""
+        if self.children[0].display not in [None, False]:
+            query = self.children[0].value
+            self.children[0].value = ""
+        else:
+            query = self.children[1].text
+            self.children[1].text = ""
         msg = UserMessage("\n\n".join(query.split('\n')))
         self.query_exactly_one("Button").disabled = True
         msg_list = self.parent.query_exactly_one("Conversation ScrollableContainer")
@@ -74,6 +95,7 @@ class ChatInput(Static):
         answer.set_loading(False)
         msg_list.scroll_end()
         self.query_exactly_one("Button").disabled = False
+        self.change_input_type(True)
 
 if __name__ == "__main__":
     ChatBotApp().run()
