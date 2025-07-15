@@ -36,6 +36,7 @@ Engage in a friendly manner to enhance the chat experience.
 - After executing a query, if it can be interesting to the user, summarise its result.
 - Do not use placeholder API keys.
 - In order to authenticate in the 127.0.0.1:8080 API, you must add an auth token to the Authorization header under the format "Bearer <TOKEN>"
+- In order to use a tool, simply end your answer by something of this form: {"name": "tool", "arguments": {"param_1": 35, "param_2": "test", "headers": {"Authorization": "Bearer abcdefGHIJKlmnOPQrstUvwXYZ"}}}
 
 # Avoiding and Handling errors
 1. **Strict Adherence to Data**: Only provide information based on the data recieved from the tools and the context provided. Do not infer or assume information that isn't supported by the data.
@@ -151,11 +152,11 @@ async def agent_loop(query: str, functions: List[dict], messages: List[Message] 
         messages: List of messages to pass to the LLM, defaults to None
     """
     if messages == []:
-        messages = [Message("system", SWAGGER + "\n" + SYSTEM_PROMPT.format(
-            tools="\n- ".join(
+        messages = [Message("system", SWAGGER + "\n" + SYSTEM_PROMPT.replace("{tools}",
+            "\n- ".join(
                 [f"{functions[f]['schema']['function']}" for f in functions]
             )
-        ) + '\n- In order to use a tool, simply end your answer by something of this form: {"name": "tool", "arguments": {"param_1": 35, "param_2": "test", "headers": {"Authorization": "Bearer abcdefGHIJKlmnOPQrstUvwXYZ"}}}')]
+        ))]
     messages.append(Message("user", query))
     
     ok = True
