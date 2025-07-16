@@ -48,22 +48,23 @@ class LoginScreen(Static):
         if ans.status_code == 200:
             self.parent.parent.parent.query_exactly_one('ChatInput Input').disabled = False
             self.parent.parent.parent.query_exactly_one('ChatInput Button').disabled = False
-            self.remove()
+            self.parent.parent.remove()
         else:
             self.display_error_message(ans.json()["error"])
 
     @on(Button.Pressed, "#signup")
     def action_signup(self):
-        username = self.query_exactly_one("#username")
-        password = self.query_exactly_one("#password")
-        try:
-            ans = requests.post("http://localhost:8080/users/auth", json={"name": username, "password": password})
-            ans.raise_for_status()
+        username = self.query_exactly_one("#username").value
+        password = self.query_exactly_one("#password").value
+        ans = requests.post("http://localhost:8080/users", json={"name": username, "password": password})
+        if ans.status_code // 100 == 2:
             self.action_login()
-        except Exception as e:
-            self.display_error_message(e)
+        else:
+            self.display_error_message(ans.json()["error"])
         
     def display_error_message(self, error):
+        for e in self.query('.error'):
+            e.remove()
         self.mount(Label(error, classes='error'))
 
 class Message(Static):

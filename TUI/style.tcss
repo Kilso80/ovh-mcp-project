@@ -9,6 +9,10 @@ Screen {
 
 .error {
     color: red;
+    width: 100%;
+    min-height: 1;
+    align-horizontal: center;
+    content-align: center middle;
 }
 
 Conversation, Conversation ScrollableContainer {
