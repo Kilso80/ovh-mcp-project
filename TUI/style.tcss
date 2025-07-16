@@ -8,6 +8,7 @@ Screen {
 }
 
 .error {
+    margin-top: 1;
     color: red;
     width: 100%;
     min-height: 1;

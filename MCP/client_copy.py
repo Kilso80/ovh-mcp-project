@@ -152,11 +152,12 @@ async def agent_loop(query: str, functions: List[dict], messages: List[Message] 
         messages: List of messages to pass to the LLM, defaults to None
     """
     if messages == []:
-        messages = [Message("system", SWAGGER + "\n" + SYSTEM_PROMPT.replace("{tools}",
-            "\n- ".join(
+        messages = [None]
+    messages = [Message("system", SYSTEM_PROMPT.replace("{tools}", 
+                                                        "\n- ".join(
                 [f"{functions[f]['schema']['function']}" for f in functions]
             )
-        ))]
+        ) + get_token())] + messages[1:]
     messages.append(Message("user", query))
     
     ok = True
@@ -181,7 +182,7 @@ async def agent_loop(query: str, functions: List[dict], messages: List[Message] 
                 print("Function call received without a valid function name.")
             callable_fn = None
             for fn in functions.values():
-                if fn["schema"]['function']['name'] == fn_name:
+                if fn["schema"]['function']["name"] == fn_name:
                     callable_fn = fn['callable']
                     break
             if callable_fn is None:
@@ -331,8 +332,19 @@ async def ask_model(query: str) -> str:
             response, messages_save = await agent_loop(query, tools, messages_save)
             return response
         except Exception as e:
-            return f"\nError occurred: {e}"
+            raise e
+            return f"\n{type(e).__name__} occurred: {e}"
 
 def reset_chat():
     global messages_save
     messages_save = []
+
+TOKEN = ""
+
+def set_token(token):
+    global TOKEN
+    TOKEN = token
+
+def get_token():
+    global TOKEN
+    return "" if TOKEN == "" else f"\n\n# User information:\nThe user's token is '{TOKEN}'."

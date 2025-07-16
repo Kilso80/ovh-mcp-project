@@ -99,11 +99,12 @@ async def agent_loop(query: str, functions: List[dict], messages: List[Message] 
         messages: List of messages to pass to the LLM, defaults to None
     """
     if messages == []:
-        messages = [Message("system", SYSTEM_PROMPT.format(
+        messages = [None]
+    messages = [Message("system", SYSTEM_PROMPT.format(
             tools="\n- ".join(
                 [f"{functions[f]['schema']['function']}" for f in functions]
             )
-        ))]
+        ) + get_token())] + messages[1:]
     messages.append(Message("user", query))
     
     ok = True
@@ -281,3 +282,13 @@ async def ask_model(query: str) -> str:
                 return response
             except Exception as e:
                 return f"\nError occurred: {e}"
+
+TOKEN = ""
+
+def set_token(token):
+    global TOKEN
+    TOKEN = token
+
+def get_token():
+    global TOKEN
+    return "" if TOKEN == "" else f"\n\nThe user's token is {TOKEN}"

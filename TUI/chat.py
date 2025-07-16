@@ -3,9 +3,8 @@ from textual.app import App
 from textual.widgets import Footer, Header, Button, Static, TextArea, Markdown, Input, Label
 from textual.containers import ScrollableContainer, Middle, Center
 from textual import on
-from MCP.client_copy import ask_model, reset_chat
+from MCP.client_copy import ask_model, reset_chat, set_token
 from textual.binding import Binding
-from json.decoder import JSONDecoder
 
 class ChatBotApp(App):
     BINDINGS = [
@@ -46,6 +45,7 @@ class LoginScreen(Static):
         password = self.query_exactly_one("#password").value
         ans = requests.post("http://localhost:8080/users/auth", json={"name": username, "password": password})
         if ans.status_code == 200:
+            set_token(ans.json()["token"])
             self.parent.parent.parent.query_exactly_one('ChatInput Input').disabled = False
             self.parent.parent.parent.query_exactly_one('ChatInput Button').disabled = False
             self.parent.parent.remove()
