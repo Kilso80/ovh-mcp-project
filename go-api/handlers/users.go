@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 
 	"go-api/models"
@@ -79,12 +80,11 @@ func UserUpdater(c *gin.Context) {
 		return
 	}
 
-	
 	if username == "" && password == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No information to update"})
 		return
 	}
-	
+
 	request := ""
 	if username == "" {
 		request = "UPDATE USERS SET password=$1 WHERE id=$2;"
@@ -110,7 +110,7 @@ func UserUpdater(c *gin.Context) {
 			}
 		}
 	}
-		
+
 	c.JSON(http.StatusOK, gin.H{"message": "User updated successfully"})
 }
 
@@ -165,6 +165,8 @@ func UserSearcher(c *gin.Context) {
 }
 
 func UserAuthenticator(c *gin.Context) {
+	// Log the request method and URL path
+	log.Printf("Request Method: %s, URL Path: %s", c.Request.Method, c.Request.URL.Path)
 	// Assume username and password are sent as JSON
 	var user credentials
 	if err := c.ShouldBindJSON(&user); err != nil {

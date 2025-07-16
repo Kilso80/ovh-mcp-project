@@ -1,3 +1,16 @@
+ChatBotApp {
+    layers: below above;
+    layer: below;
+}
+
+Screen {
+    overflow-y: hidden;
+}
+
+.error {
+    color: red;
+}
+
 Conversation, Conversation ScrollableContainer {
     layout: vertical;
     width: 100%;
@@ -33,13 +46,13 @@ UserMessage Markdown {
 }
 
 ChatInput Input {
-    width: 92vw;
+    width: 90vw;
     text-overflow: fold;
 }
 
 ChatInput TextArea {
     max-height: 10;
-    width: 92vw;
+    width: 90vw;
     display: None;
 }
 
@@ -54,5 +67,30 @@ ChatInput {
 }
 
 ChatInput Button {
-    width: 8vw;
+    width: 10vw;
+}
+
+Middle {
+    layer: above;
+}
+
+LoginScreen {
+    align: center middle;
+    background: $panel;
+    height: 20;
+    width: 75;
+}
+
+LoginScreen Static {
+    layout: horizontal;
+    align-horizontal: center;
+}
+
+LoginScreen Button {
+    margin-left: 2;
+    margin-right: 2;
+}
+
+LoginScreen Input {
+    margin-bottom: 2;
 }

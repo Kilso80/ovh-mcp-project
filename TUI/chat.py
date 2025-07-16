@@ -1,9 +1,11 @@
+import requests
 from textual.app import App
-from textual.widgets import Footer, Header, Button, Static, TextArea, Markdown, Input
-from textual.containers import ScrollableContainer
+from textual.widgets import Footer, Header, Button, Static, TextArea, Markdown, Input, Label
+from textual.containers import ScrollableContainer, Middle, Center
 from textual import on
 from MCP.client_copy import ask_model, reset_chat
 from textual.binding import Binding
+from json.decoder import JSONDecoder
 
 class ChatBotApp(App):
     BINDINGS = [
@@ -18,15 +20,51 @@ class ChatBotApp(App):
         yield Conversation()
         yield ChatInput()
         yield Footer()
+        with Middle():
+            with Center():
+                yield LoginScreen()
         
     def action_create_new_chat(self):
         reset_chat()
         self.query_exactly_one("Conversation ScrollableContainer").remove_children()
-        
 
 class Conversation(Static):
     def compose(self):
         yield ScrollableContainer()
+
+class LoginScreen(Static):
+    def compose(self):
+        yield Input(placeholder="Login", id="username")
+        yield Input(placeholder="Password", password=True, id="password")
+        with Static():
+            yield Button("Log in", id="login")
+            yield Button("Sign up", id="signup")
+    
+    @on(Button.Pressed, "#login")
+    def action_login(self):
+        username = self.query_exactly_one("#username").value
+        password = self.query_exactly_one("#password").value
+        ans = requests.post("http://localhost:8080/users/auth", json={"name": username, "password": password})
+        if ans.status_code == 200:
+            self.parent.parent.parent.query_exactly_one('ChatInput Input').disabled = False
+            self.parent.parent.parent.query_exactly_one('ChatInput Button').disabled = False
+            self.remove()
+        else:
+            self.display_error_message(ans.json()["error"])
+
+    @on(Button.Pressed, "#signup")
+    def action_signup(self):
+        username = self.query_exactly_one("#username")
+        password = self.query_exactly_one("#password")
+        try:
+            ans = requests.post("http://localhost:8080/users/auth", json={"name": username, "password": password})
+            ans.raise_for_status()
+            self.action_login()
+        except Exception as e:
+            self.display_error_message(e)
+        
+    def display_error_message(self, error):
+        self.mount(Label(error, classes='error'))
 
 class Message(Static):
     def __init__(self, message: str, *args, **kwargs):
@@ -51,16 +89,16 @@ class UserMessage(Message):
 
 class ChatInput(Static):
     BINDINGS = [
-        Binding("shift+enter", "use_multiline", "Switch to a multi-line text editor")
+        Binding("ctrl+b", "use_multiline", "Switch between multi and single-line editor")
     ]
     def compose(self):
-        i = Input(placeholder="Enter your question here")
+        i = Input(placeholder="Enter your question here", disabled=True)
         yield i
         yield TextArea(compact=True, id="input")
-        yield Button('Send', "primary")
+        yield Button('Send', "primary", disabled=True)
         
     def action_use_multiline(self):
-        self.change_input_type(False)
+        self.change_input_type(not self.children[0].display)
         
     def change_input_type(self, oneline: bool):
         if self.children[1].display not in [None, False] and oneline:
@@ -95,7 +133,6 @@ class ChatInput(Static):
         answer.set_loading(False)
         msg_list.scroll_end()
         self.query_exactly_one("Button").disabled = False
-        self.change_input_type(True)
 
 if __name__ == "__main__":
     ChatBotApp().run()
