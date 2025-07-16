@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"database/sql"
-	"log"
 	"net/http"
 
 	"go-api/models"
@@ -165,8 +164,6 @@ func UserSearcher(c *gin.Context) {
 }
 
 func UserAuthenticator(c *gin.Context) {
-	// Log the request method and URL path
-	log.Printf("Request Method: %s, URL Path: %s", c.Request.Method, c.Request.URL.Path)
 	// Assume username and password are sent as JSON
 	var user credentials
 	if err := c.ShouldBindJSON(&user); err != nil {
