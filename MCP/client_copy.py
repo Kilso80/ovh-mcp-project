@@ -332,7 +332,6 @@ async def ask_model(query: str) -> str:
             response, messages_save = await agent_loop(query, tools, messages_save)
             return response
         except Exception as e:
-            raise e
             return f"\n{type(e).__name__} occurred: {e}"
 
 def reset_chat():
