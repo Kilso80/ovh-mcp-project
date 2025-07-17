@@ -153,7 +153,7 @@ async def agent_loop(query: str, functions: List[dict], messages: List[Message] 
     """
     if messages == []:
         messages = [None]
-    messages = [Message("system", SYSTEM_PROMPT.replace("{tools}", 
+    messages = [Message("system", SWAGGER + SYSTEM_PROMPT.replace("{tools}", 
                                                         "\n- ".join(
                 [f"{functions[f]['schema']['function']}" for f in functions]
             )
