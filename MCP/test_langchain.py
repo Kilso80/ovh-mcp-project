@@ -6,7 +6,9 @@ from langchain_core.messages import (
     AIMessage,
     BaseMessage,
     HumanMessage,
+    SystemMessage,
 )
+from langchain_core.messages.function import FunctionMessage
 import json
 from mcp.client.stdio import stdio_client
 
@@ -878,12 +880,12 @@ async def agent_loop(query: str, functions: List[dict], messages: List[BaseMessa
     """
     if messages == []:
         messages = [None]
-    messages = [BaseMessage(SWAGGER + SYSTEM_PROMPT.replace("{tools}", 
+    messages = [SystemMessage(SWAGGER + SYSTEM_PROMPT.replace("{tools}", 
                                                         "\n- ".join(
                 [f"{functions[f]['schema']['function']}" for f in functions]
             )
-        ) + get_token(), type="System")] + messages[1:]
-    messages.append(HumanMessage(query))
+        ) + get_token())] + messages[1:]
+    messages.append(HumanMessage(f"User: {query}\n\n\nAssistant: "))
     
     ok = True
     
@@ -912,24 +914,11 @@ async def agent_loop(query: str, functions: List[dict], messages: List[BaseMessa
                 fn_res: str = await callable_fn(**fn_args)
                 if any([fn_res.startswith(e) for e in ["Invalid HTTP method: ", "Request is not allowed from this URL", "HTTP error occurred: ", "Connection error occurred: ", "Timeout error occurred: ", "An error occurred: "]]):
                     raise Exception(fn_res)
-                messages.append({
-                    "role": "function",
-                    "name": fn_name,
-                    "content": json.dumps(fn_res),
-                })
-                messages.append(BaseMessage(
-                    "The tool call terminated. As I can't read anything said since my last question, you are going to sum up what happened since. You will avoid talking about technical details such as requests if possible.",
-                    type="Tool"
-                ))
+                messages.append(FunctionMessage(fn_res, name=fn_name))
             except Exception as e:
                 print(f"Error executing function {fn_name}: {e}")
-                messages.append({
-                    "role": "function",
-                    "name": fn_name,
-                    "content": json.dumps(f"Error executing function: {e}"),
-                })
-                messages.append(BaseMessage(
-                    "The tool call terminated with an error. You will explain what happened. You will explain the issue and establish a strategy about how to fix it. If it is very simple, try to do so. Else, just ask the user. If you cannot fulfill their request, just tell them.",
-                    type="Tool"
+                messages.append(FunctionMessage(
+                  content=f"Error executing function: {e}",
+                  name=fn_name
                 ))
-    return messages[-1].get("content", ""), messages
+    return messages[-1].content, messages
