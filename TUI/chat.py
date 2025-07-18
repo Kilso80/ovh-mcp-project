@@ -3,7 +3,7 @@ from textual.app import App
 from textual.widgets import Footer, Header, Button, Static, TextArea, Markdown, Input, Label
 from textual.containers import ScrollableContainer, Middle, Center
 from textual import on
-from MCP.client_copy import ask_model, reset_chat, set_token
+from MCP.test_langchain import ask_model, reset_chat, set_token
 from textual.binding import Binding
 
 class ChatBotApp(App):

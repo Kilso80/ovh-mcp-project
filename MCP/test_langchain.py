@@ -1,13 +1,14 @@
+from langchain_openai.llms.base import OpenAI
 from MCP.keys import API_KEY
-import json
 from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
 from typing import Any, List
-import asyncio
-from qwen_agent.llm import get_chat_model
-from qwen_agent.llm.schema import Message
-
-MODEL_ID = "Qwen2.5-Coder-32B-Instruct"
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+)
+import json
+from mcp.client.stdio import stdio_client
 
 SWAGGER = """{
   "openapi": "3.0.2",
@@ -711,12 +712,16 @@ Here's an example of how to handle an error without hallucinating:
 ```
 """
 
-client = get_chat_model({
-    "model": MODEL_ID,
-    "model_server": "https://qwen-2-5-coder-32b-instruct.endpoints.kepler.ai.cloud.ovh.net/api/openai_compat/v1",
-    "api_key": API_KEY
-})
+# Basic Example (no streaming)
+llm = OpenAI(
+    base_url="https://qwen-2-5-coder-32b-instruct.endpoints.kepler.ai.cloud.ovh.net/api/openai_compat/v1",
+    api_key=API_KEY,
+    model="Qwen2.5-Coder-32B-Instruct",
+    temperature=0.3,
+    top_p=0.6
+)
 
+messages_save = []
 
 class MCPClient:
     """
@@ -784,163 +789,6 @@ class MCPClient:
         return callable
 
 
-async def agent_loop(query: str, functions: List[dict], messages: List[Message] = None):
-    """
-    Main interaction loop that processes user queries using the LLM and available functions.
-
-    This function:
-    1. Sends the user query to the LLM with context about available functions
-    2. Processes the LLM's response, including any function calls
-    3. Returns the final response to the user
-
-    Args:
-        query: User's input question or command
-        functions: List of available database functions and their schemas
-        messages: List of messages to pass to the LLM, defaults to None
-    """
-    if messages == []:
-        messages = [None]
-    messages = [Message("system", SWAGGER + SYSTEM_PROMPT.replace("{tools}", 
-                                                        "\n- ".join(
-                [f"{functions[f]['schema']['function']}" for f in functions]
-            )
-        ) + get_token())] + messages[1:]
-    messages.append(Message("user", query))
-    
-    ok = True
-    
-    while ok:
-        ok = False
-        responses = client.chat(
-            messages=messages,
-            functions=[functions[f]['schema']['function'] for f in functions],
-            extra_generate_cfg=dict(parallel_function_calls=True)
-        )
-        
-        message = None
-        for r in responses:
-            for m in r:
-                message = m
-        ok, fn_call = str_to_tool_call(message.get("content"))
-        if ok:
-            fn_name: str = fn_call.get('name', '')
-            fn_args: dict = fn_call.get("arguments", dict())
-            if not fn_name:
-                print("Function call received without a valid function name.")
-            callable_fn = None
-            for fn in functions.values():
-                if fn["schema"]['function']["name"] == fn_name:
-                    callable_fn = fn['callable']
-                    break
-            if callable_fn is None:
-                print(f"No callable found for function name: {fn_name}")
-            try:
-                fn_res: str = await callable_fn(**fn_args)
-                if any([fn_res.startswith(e) for e in ["Invalid HTTP method: ", "Request is not allowed from this URL", "HTTP error occurred: ", "Connection error occurred: ", "Timeout error occurred: ", "An error occurred: "]]):
-                    raise Exception(fn_res)
-                messages.append({
-                    "role": "function",
-                    "name": fn_name,
-                    "content": json.dumps(fn_res),
-                })
-                messages.append(Message(
-                    "user",
-                    "The tool call terminated. As I can't read anything said since my last question, you are going to sum up what happened since. You will avoid talking about technical details such as requests if possible.",
-                ))
-            except Exception as e:
-                print(f"Error executing function {fn_name}: {e}")
-                messages.append({
-                    "role": "function",
-                    "name": fn_name,
-                    "content": json.dumps(f"Error executing function: {e}"),
-                })
-                messages.append(Message(
-                    "user",
-                    "The tool call terminated with an error. You will explain what happened. You will explain the issue and establish a strategy about how to fix it. If it is very simple, try to do so. Else, just ask the user. If you cannot fulfill their request, just tell them.",
-                ))
-        messages.append(message)
-    return messages[-1].get("content", ""), messages
-
-
-def str_to_tool_call(string):
-    if '}' not in string:
-        return False, None
-    l = string.split('}')
-    string = '}'.join(l[:-1]) + '}'
-    i = len(string) - 1
-    c = 1
-    while i > 0 and c > 0:
-        i -= 1
-        c += (string[i] == '}') - (string[i] == '{')
-    if string[i] != '{':
-        return False, None
-    try:
-        r = eval(string[i:].replace(": null", ": None"))
-        assert type(r) is dict
-    except:
-        return False, None
-    return r.get("name") is not None and r.get("arguments") is not None, r
-
-
-async def main():
-    """
-    Main function that sets up the MCP server, initializes tools, and runs the interactive loop.
-    The server is run in a Docker container to ensure isolation and consistency.
-    """
-    server_params = StdioServerParameters(
-        command="python3",
-        args=[
-            "mcp-postgres/server2.py",
-        ],
-        env=None
-    )
-    
-    # Start MCP client and create interactive session
-    async with MCPClient(server_params) as mcp_client:
-        # Get available database tools and prepare them for the LLM
-        mcp_tools = await mcp_client.get_available_tools()
-        # Convert MCP tools into a format the LLM can understand and use
-        tools = {
-            tool.name: {
-                "name": tool.name,
-                "callable": mcp_client.call_tool(
-                    tool.name
-                ),  # returns a callable function for the rpc call
-                "schema": {
-                    "type": "function",
-                    "function": {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": tool.inputSchema,
-                    },
-                },
-            }
-            for tool in mcp_tools
-            if tool.name
-            != "list_tables"  # Excludes list_tables tool as it has an incorrect schema
-        }
-        
-        messages = []
-        while True:
-            try:
-                user_input = input("\nEnter your prompt (or 'quit' to exit): ")
-                if user_input.lower() in ["quit", "exit", "q"]:
-                    break
-                # Process the prompt and run agent loop
-                response, messages = await agent_loop(user_input, tools, messages)
-                print("\nResponse:", response)
-            except KeyboardInterrupt:
-                print("\nExiting...")
-                break
-            except Exception as e:
-                print(f"\nError occurred: {e}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-
-messages_save = []
-
 async def ask_model(query: str) -> str:
     global messages_save
     server_params = StdioServerParameters(
@@ -994,3 +842,94 @@ def set_token(token):
 def get_token():
     global TOKEN
     return "" if TOKEN == "" else f"\n\n# User information:\nThe user's token is '{TOKEN}'."
+
+def str_to_tool_call(string):
+    if '}' not in string:
+        return False, None
+    l = string.split('}')
+    string = '}'.join(l[:-1]) + '}'
+    i = len(string) - 1
+    c = 1
+    while i > 0 and c > 0:
+        i -= 1
+        c += (string[i] == '}') - (string[i] == '{')
+    if string[i] != '{':
+        return False, None
+    try:
+        r = eval(string[i:].replace(": null", ": None"))
+        assert type(r) is dict
+    except:
+        return False, None
+    return r.get("name") is not None and r.get("arguments") is not None, r
+
+async def agent_loop(query: str, functions: List[dict], messages: List[BaseMessage] = None):
+    """
+    Main interaction loop that processes user queries using the LLM and available functions.
+
+    This function:
+    1. Sends the user query to the LLM with context about available functions
+    2. Processes the LLM's response, including any function calls
+    3. Returns the final response to the user
+
+    Args:
+        query: User's input question or command
+        functions: List of available database functions and their schemas
+        messages: List of messages to pass to the LLM, defaults to None
+    """
+    if messages == []:
+        messages = [None]
+    messages = [BaseMessage(SWAGGER + SYSTEM_PROMPT.replace("{tools}", 
+                                                        "\n- ".join(
+                [f"{functions[f]['schema']['function']}" for f in functions]
+            )
+        ) + get_token(), type="System")] + messages[1:]
+    messages.append(HumanMessage(query))
+    
+    ok = True
+    
+    while ok:
+        ok = False
+        answer = llm.invoke(
+            messages
+        )
+        
+        messages.append(AIMessage(answer))
+        
+        ok, fn_call = str_to_tool_call(answer)
+        if ok:
+            fn_name: str = fn_call.get('name', '')
+            fn_args: dict = fn_call.get("arguments", dict())
+            if not fn_name:
+                print("Function call received without a valid function name.")
+            callable_fn = None
+            for fn in functions.values():
+                if fn["schema"]['function']["name"] == fn_name:
+                    callable_fn = fn['callable']
+                    break
+            if callable_fn is None:
+                print(f"No callable found for function name: {fn_name}")
+            try:
+                fn_res: str = await callable_fn(**fn_args)
+                if any([fn_res.startswith(e) for e in ["Invalid HTTP method: ", "Request is not allowed from this URL", "HTTP error occurred: ", "Connection error occurred: ", "Timeout error occurred: ", "An error occurred: "]]):
+                    raise Exception(fn_res)
+                messages.append({
+                    "role": "function",
+                    "name": fn_name,
+                    "content": json.dumps(fn_res),
+                })
+                messages.append(BaseMessage(
+                    "The tool call terminated. As I can't read anything said since my last question, you are going to sum up what happened since. You will avoid talking about technical details such as requests if possible.",
+                    type="Tool"
+                ))
+            except Exception as e:
+                print(f"Error executing function {fn_name}: {e}")
+                messages.append({
+                    "role": "function",
+                    "name": fn_name,
+                    "content": json.dumps(f"Error executing function: {e}"),
+                })
+                messages.append(BaseMessage(
+                    "The tool call terminated with an error. You will explain what happened. You will explain the issue and establish a strategy about how to fix it. If it is very simple, try to do so. Else, just ask the user. If you cannot fulfill their request, just tell them.",
+                    type="Tool"
+                ))
+    return messages[-1].get("content", ""), messages
